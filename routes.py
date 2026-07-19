@@ -17,6 +17,12 @@ from flask import jsonify, request, render_template, redirect, url_for
 from flask_login import login_required, current_user
 import cloudinary.uploader
 
+from huggingface_hub import InferenceClient
+import os
+
+# Initialize the client using your Vercel Environment Variable
+client = InferenceClient(token=os.environ.get('HF_TOKEN'))
+
 @app.route("/api/analyze-image", methods=["POST"])
 @login_required
 def analyze_image_api():
@@ -24,8 +30,17 @@ def analyze_image_api():
     if not file: 
         return jsonify({"error": "No file"}), 400
     
-    # Generate metadata using your AI model
-    caption = generate_image_caption(file.stream, processor, ai_model)
+    try:
+        # 1. Read the image completely into memory (Fixes Vercel Read-Only File System Error)
+        image_bytes = file.read()
+        
+        # 2. Call the Hugging Face API instead of processing locally (Fixes Vercel Timeout/Memory Crash)
+        # By default, image_to_text uses a fast, lightweight captioning model.
+        caption = client.image_to_text(image_bytes)
+    except Exception as e:
+        print(f"Hugging Face API Error: {e}")
+        return jsonify({"error": "Image analysis failed"}), 500
+
     short_title = ' '.join(caption.split()[:4]).capitalize()
     
     cap_lower = caption.lower()
