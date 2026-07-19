@@ -12,7 +12,20 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '5791628bb0b13ce0c676dfde280ba245')
 
 # Vercel needs a cloud DB (like Neon or Supabase). This falls back to sqlite locally.
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///site.db')
+# 1. Fetch the Neon Database URL injected by Vercel
+database_url = os.environ.get('DATABASE_URL')
+
+# 2. Fix the prefix: Neon provides 'postgres://', but SQLAlchemy strictly requires 'postgresql://'
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+# 3. Apply the modified URL to your Flask app
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+
+# IMPORTANT: Ensure any hardcoded SQLite fallback is COMPLETELY REMOVED.
+# Make sure lines like these are deleted:
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+# app.instance_path = ...
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Configure Cloudinary safely 
