@@ -7,7 +7,7 @@ from extensions import db, bcrypt
 import cloudinary
 import cloudinary.uploader
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='.')
 # Use environment variables for security in production
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '5791628bb0b13ce0c676dfde280ba245')
 
