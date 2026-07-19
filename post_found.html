@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+{% block main_content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card p-4 shadow-sm bg-white">
+            <h2 class="fw-bold text-success mb-3">Post a Discovered Item Notice</h2>
+            <form method="POST" action="{{ url_for('post_found') }}" enctype="multipart/form-data">
+                
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Attach Discovered Item Image</label>
+                    <input type="file" name="item_image" id="item_image" class="form-control" accept="image/*" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Generalized Item Title</label>
+                    <input type="text" name="title" id="item_title" class="form-control" placeholder="e.g., Smart Phone, Set of Keys" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Item Category</label>
+                    <select name="category" id="item_category" class="form-select" required>
+                        {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Where did you find it? (Manual Entry)</label>
+                    <input type="text" name="location" class="form-control" placeholder="e.g., Under the green bench in the main playground area" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Discovery Calendar Date</label>
+                    <input type="date" name="date" class="form-control" required>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-primary"><i class="fas fa-robot"></i> AI Generated Public Description</label>
+                    <textarea name="ai_caption" id="ai_caption" class="form-control" rows="4" placeholder="Upload an image to auto-generate tags..." required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Publish Found Item Notice</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('item_image').addEventListener('change', async function() {
+        const file = this.files[0];
+        if (!file) return;
+
+        const titleInput = document.getElementById('item_title');
+        const captionBox = document.getElementById('ai_caption');
+        const categoryDropdown = document.getElementById('item_category');
+        
+        titleInput.value = "🤖 Scanning...";
+        captionBox.value = "🤖 Analyzing image content... Please wait...";
+        
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/analyze-image', { 
+                method: 'POST', 
+                body: formData 
+            });
+            const data = await response.json();
+            
+            console.log("API Response Data:", data); // Check F12 Console for debug info
+
+            if (data.title) {
+                titleInput.value = data.title;
+            }
+            if (data.caption) {
+                captionBox.value = data.caption;
+            }
+            if (data.category) {
+                categoryDropdown.value = data.category;
+                // Force UI update
+                categoryDropdown.dispatchEvent(new Event('change'));
+            }
+        } catch (error) {
+            console.error("Error fetching AI data:", error);
+            captionBox.value = "Error generating details. Please fill manually.";
+            titleInput.value = "";
+        }
+    });
+</script>
+{% endblock %}
