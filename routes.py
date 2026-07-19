@@ -1,4 +1,4 @@
-from flask import render_template, url_for, flash, redirect, request, abort
+from flask import render_template, url_for, flash, redirect, request, abort, jsonify
 from app import app
 from extensions import db, bcrypt
 from models import User, LostItem, FoundItem, Claim
@@ -10,17 +10,10 @@ from functools import wraps
 import cloudinary
 import cloudinary.uploader
 from PIL import Image
-
-from flask import jsonify
-
-from flask import jsonify, request, render_template, redirect, url_for
-from flask_login import login_required, current_user
-import cloudinary.uploader
-
 from huggingface_hub import InferenceClient
-import os
 
-# Initialize the client using your Vercel Environment Variable
+# Initialize the Hugging Face API Client using your Vercel Environment Variable
+# This prevents the server from crashing or timing out due to memory limits
 client = InferenceClient(token=os.environ.get('HF_TOKEN'))
 
 @app.route("/api/analyze-image", methods=["POST"])
@@ -31,16 +24,18 @@ def analyze_image_api():
         return jsonify({"error": "No file"}), 400
     
     try:
-        # 1. Read the image completely into memory (Fixes Vercel Read-Only File System Error)
+        # Read the image entirely into memory as bytes
         image_bytes = file.read()
         
-        # 2. Call the Hugging Face API instead of processing locally (Fixes Vercel Timeout/Memory Crash)
-        # By default, image_to_text uses a fast, lightweight captioning model.
-        caption = client.image_to_text(image_bytes)
+        # Call the Hugging Face API with a fast-booting model to avoid Vercel timeouts
+        caption = client.image_to_text(
+            image_bytes,
+            model="Salesforce/blip-image-captioning-base"
+        )
     except Exception as e:
         print(f"Hugging Face API Error: {e}")
         return jsonify({"error": "Image analysis failed"}), 500
-
+    
     short_title = ' '.join(caption.split()[:4]).capitalize()
     
     cap_lower = caption.lower()
@@ -104,13 +99,6 @@ CATEGORIES = [
     "Toys & Hobbies",
     "Others" # Placed intentionally at the very end 
 ]
-
-# --- HUGGING FACE MODEL INTEGRATION ---
-from model_utils import load_blip_model, generate_image_caption
-
-print("Initializing AI Captioning Model into memory...")
-processor, ai_model = load_blip_model()
-print("Model loaded successfully!")
 # --------------------------------------
 def admin_required(f):
     @wraps(f)
